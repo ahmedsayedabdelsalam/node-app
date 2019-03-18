@@ -1,32 +1,6 @@
-const fs = require('fs');
-const path = require('path');
+const db = require('../util/database');
 
-const Cart = require('./cart');
-
-const p = path.join(
-  path.dirname(process.mainModule.filename),
-  'data',
-  'products.json'
-);
-
-const getProductsFromFile = cb => {
-  fs.readFile(p, (err, fileContent) => {
-    if (err) {
-      cb([]);
-    } else {
-      cb(JSON.parse(fileContent));
-    }
-  });
-};
-
-const postProductsToFile = (products, cb) => {
-  fs.writeFile(p, JSON.stringify(products), err => {
-    console.log(err);
-    if (!err && cb) {
-      cb()
-    }
-  });
-};
+const Cart = require('../models/cart');
 
 module.exports = class Product {
   constructor(id, title, imageUrl, description, price) {
@@ -38,39 +12,20 @@ module.exports = class Product {
   }
 
   save() {
-    getProductsFromFile(products => {
-      if (this.id) {
-        const existingProductIndex = products.findIndex(product => product.id === this.id);
-        const updatedProducts = [...products];
-        updatedProducts[existingProductIndex] = this;
-        postProductsToFile(updatedProducts)
-      } else {
-        this.id = Math.random().toString();
-        products.push(this);
-        postProductsToFile(products)
-      }
-    });
+    return db.execute('INSERT INTO products (title, price, imageUrl, description) VALUES (?, ?, ?, ?)',
+        [this.title, this.price, this.imageUrl, this.description]
+    );
   }
 
-  static fetchAll(cb) {
-    getProductsFromFile(cb);
+  static fetchAll() {
+    return db.execute('SELECT * FROM products');
   }
 
-  static findById(id, cb) {
-    getProductsFromFile(products => {
-      const product = products.find(product => product.id === id);
-      cb(product)
-    })
+  static findById(id) {
+    return db.execute('SELECT * FROM products WHERE products.id = ?', [id]);
   }
 
-  static deleteById(id, cb) {
-    getProductsFromFile(products => {
-      const product = products.find(product => product.id === id);
-      const updatedProducts = products.filter(product => product.id !== id);
-      postProductsToFile(updatedProducts, () => {
-        Cart.deleteProduct(id, product.price);
-      });
-      cb()
-    })
+  static deleteById(id) {
+
   }
 };
